@@ -39,7 +39,7 @@ paths:
 
 
 mlflow:
-  tracking_uri: "http://localhost:5000"
+  tracking_uri: "file:./mlruns"
   experiment_name: "churn_prediction_model"
 
 
