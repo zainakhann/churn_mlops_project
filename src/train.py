@@ -110,7 +110,7 @@ def main():
     IS_CI = os.getenv("GITHUB_ACTIONS") == "true"
 
     if IS_CI:
-        mlflow.set_tracking_uri("file:./mlruns")
+        mlflow.set_tracking_uri("http://127.0.0.1:5000")
     else:
         mlflow.set_tracking_uri(MLFLOW_URI)
 
