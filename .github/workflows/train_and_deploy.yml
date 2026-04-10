@@ -1,0 +1,110 @@
+name: Churn MLOps CI/CD
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  train:
+    runs-on: ubuntu-latest
+
+    steps:
+      # ----------------------------
+      # Checkout repo
+      # ----------------------------
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      # ----------------------------
+      # Setup Python
+      # ----------------------------
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      # ----------------------------
+      # Install dependencies
+      # ----------------------------
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install dvc
+
+      # ----------------------------
+      # Debug file structure
+      # ----------------------------
+      - name: Debug file structure
+        run: |
+          echo "Current directory:"
+          pwd
+          echo "Listing files:"
+          ls -R
+
+      # ----------------------------
+      # Pull data from DVC (optional safe mode)
+      # ----------------------------
+      - name: Pull data from DVC
+        run: dvc pull || echo "DVC pull failed, continuing..."
+
+      # ----------------------------
+      # Run training (Churn dataset)
+      # ----------------------------
+      - name: Run training
+        run: |
+          export PYTHONPATH=$PYTHONPATH:$(pwd)
+          python src/train.py
+
+      # ----------------------------
+      # Upload artifacts
+      # ----------------------------
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: churn-model-artifacts
+          path: |
+            models/
+            mlruns/
+            feature_store/
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: train
+
+    steps:
+      # ----------------------------
+      # Checkout repo again
+      # ----------------------------
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      # ----------------------------
+      # Setup Docker Buildx
+      # ----------------------------
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # ----------------------------
+      # Login to Docker Hub
+      # ----------------------------
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      # ----------------------------
+      # Verify Docker login
+      # ----------------------------
+      - name: Verify Docker login
+        run: docker info
+
+      # ----------------------------
+      # Build & Push Docker Image (Churn Model)
+      # ----------------------------
+      - name: Build & Push Docker Image
+        run: |
+          docker build -t churn-mlops:latest .
+          docker tag churn-mlops:latest zainakhann/churn-mlops:latest
+          docker push zainakhann/churn-mlops:latest
