@@ -115,6 +115,16 @@ def main():
     else:
         mlflow.set_tracking_uri(MLFLOW_URI)
 
+    # ============================
+    # Ensure experiment exists
+    # ============================
+    experiment = mlflow.get_experiment_by_name(EXPERIMENT_NAME)
+
+    if experiment is None:
+        mlflow.create_experiment(EXPERIMENT_NAME)
+
+    mlflow.set_experiment(EXPERIMENT_NAME)
+
     with mlflow.start_run(run_name=f"train_{timestamp}"):
 
         # ----------------------------
