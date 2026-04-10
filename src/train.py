@@ -110,11 +110,11 @@ def main():
     IS_CI = os.getenv("GITHUB_ACTIONS") == "true"
 
     if IS_CI:
-        mlflow.set_tracking_uri("file:./mlruns")
+        # FIX: GitHub Actions safe mode
+        mlflow.set_tracking_uri("http://127.0.0.1:5000")
+        os.environ["MLFLOW_TRACKING_URI"] = "http://127.0.0.1:5000"
     else:
         mlflow.set_tracking_uri(MLFLOW_URI)
-
-    mlflow.set_experiment(EXPERIMENT_NAME)
 
     with mlflow.start_run(run_name=f"train_{timestamp}"):
 
