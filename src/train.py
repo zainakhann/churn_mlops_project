@@ -10,19 +10,15 @@ import subprocess
 import hashlib
 import yaml
 
-
 from sklearn.pipeline import Pipeline
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
-
 
 import mlflow
 import mlflow.sklearn
 from mlflow import MlflowClient
 
-
 # ✅ ADDED (your import)
 from feature_store.feature_store import save_features
-
 
 from src.utils import load_data, split_data
 from pipelines.feature_pipeline import feature_engineering
@@ -35,7 +31,6 @@ from pipelines.model_pipeline import build_model_pipeline
 CONFIG_PATH = "config/config.yaml"
 if not os.path.exists(CONFIG_PATH):
     raise FileNotFoundError(f"{CONFIG_PATH} not found")
-
 
 with open(CONFIG_PATH, "r") as f:
     config = yaml.safe_load(f)
@@ -58,7 +53,9 @@ MLFLOW_URI = config["mlflow"].get("tracking_uri")
 EXPERIMENT_NAME = config["mlflow"].get("experiment_name", "churn_prediction_model")
 
 
+# ============================
 # Ensure directories exist
+# ============================
 os.makedirs(LOG_PATH, exist_ok=True)
 os.makedirs(MODEL_PATH, exist_ok=True)
 os.makedirs(FEATURE_STORE_PATH, exist_ok=True)
@@ -72,6 +69,7 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(message)s"
 )
+
 console = logging.StreamHandler()
 console.setLevel(logging.INFO)
 logging.getLogger("").addHandler(console)
@@ -106,21 +104,19 @@ def main():
     logging.info("===== TRAINING PIPELINE STARTED =====")
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-
+    # ============================
+    # MLflow FIX (CI vs Local)
+    # ============================
     IS_CI = os.getenv("GITHUB_ACTIONS") == "true"
-
 
     if IS_CI:
         mlflow.set_tracking_uri("file:./mlruns")
     else:
         mlflow.set_tracking_uri(MLFLOW_URI)
 
-
     mlflow.set_experiment(EXPERIMENT_NAME)
 
-
     with mlflow.start_run(run_name=f"train_{timestamp}"):
-
 
         # ----------------------------
         # Load Data
@@ -131,12 +127,10 @@ def main():
 
         logging.info(f"Data Loaded | Shape: {df.shape}")
 
-
         # ----------------------------
         # Feature Engineering
         # ----------------------------
         df = feature_engineering(df)
-
 
         # ----------------------------
         # Feature Store Logging
@@ -149,12 +143,10 @@ def main():
             required_columns=df.columns.tolist()
         )
 
-
         feature_path = os.path.join(FEATURE_STORE_PATH, f"features_{timestamp}.pkl")
         joblib.dump(df, feature_path)
 
         logging.info(f"Feature Engineering Done | Shape: {df.shape}")
-
 
         # ----------------------------
         # Split Data
@@ -168,7 +160,6 @@ def main():
 
         logging.info(f"Split Done | Train: {X_train.shape} | Test: {X_test.shape}")
 
-
         # ----------------------------
         # Build and Train Model
         # ----------------------------
@@ -177,7 +168,6 @@ def main():
         logging.info("Model Pipeline Created")
         pipeline.fit(X_train, y_train)
         logging.info("Model Training Completed")
-
 
         # ----------------------------
         # Evaluate Model
@@ -194,7 +184,6 @@ def main():
         logging.info(f"Recall: {rec:.4f}")
         logging.info(f"F1 Score: {f1:.4f}")
 
-
         # ----------------------------
         # Save Model & Pipeline
         # ----------------------------
@@ -206,7 +195,6 @@ def main():
 
         logging.info(f"Model Saved at: {model_path}")
         logging.info(f"Pipeline Saved at: {pipeline_path}")
-
 
         # ----------------------------
         # MLflow Logging
@@ -224,7 +212,6 @@ def main():
         mlflow.log_artifact(pipeline_path, artifact_path="pipeline")
         mlflow.log_artifact(feature_path, artifact_path="features")
 
-
         # ----------------------------
         # Model Registry
         # ----------------------------
@@ -238,10 +225,8 @@ def main():
 
         logging.info(f"Model registered with run_id: {run_id}")
 
-
         dvc_checksum = get_dvc_checksum(DATA_PATH)
         mlflow.log_param("dvc_checksum", dvc_checksum)
-
 
         # ----------------------------
         # Metadata
