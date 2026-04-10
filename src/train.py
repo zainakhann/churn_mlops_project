@@ -1,4 +1,5 @@
 # src/train.py
+
 # ============================
 # Imports
 # ============================
@@ -110,9 +111,7 @@ def main():
     IS_CI = os.getenv("GITHUB_ACTIONS") == "true"
 
     if IS_CI:
-        # FIX: GitHub Actions safe mode
-        mlflow.set_tracking_uri("http://127.0.0.1:5000")
-        os.environ["MLFLOW_TRACKING_URI"] = "http://127.0.0.1:5000"
+        mlflow.set_tracking_uri("file:./mlruns")
     else:
         mlflow.set_tracking_uri(MLFLOW_URI)
 
