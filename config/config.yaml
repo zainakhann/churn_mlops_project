@@ -1,0 +1,118 @@
+project:
+  name: "churn_mlops"
+  environment: "dev"
+  random_state: 42
+
+
+data:
+  raw_path: "data/churn.csv"
+  processed_path: "data/processed.csv"
+  test_size: 0.2
+  target_column: "Churn"
+
+
+features:
+  feature_store_path: "feature_store/"
+  save_engineered_features: true
+  versioning: true
+
+
+model:
+  name: "RandomForest"
+  base_params:
+    n_estimators: 200
+    max_depth: 10
+  tuning:
+    enabled: true
+    cv_folds: 3
+    scoring: "f1"
+    param_grid:
+      n_estimators: [100, 200, 300]
+      max_depth: [5, 10, 15]
+
+
+paths:
+  models: "models/"
+  pipeline_path: "models/pipeline.pkl"
+  logs: "logs/"
+  artifacts: "artifacts/"
+
+
+mlflow:
+  tracking_uri: "http://localhost:5000"
+  experiment_name: "churn_prediction_model"
+
+
+api:
+  host: "0.0.0.0"
+  port: 8000
+
+
+monitoring:
+  prometheus_port: 8001
+  drift_report_path: "monitoring/drift_report.html"
+  enable_drift_detection: true
+
+
+# ----------------------------
+# VALIDATION (UPDATED FOR CHURN)
+# ----------------------------
+validation:
+  enabled: true
+  expectation_suite: "churn_suite.json"
+
+  numeric:
+    tenure:
+      min: 0
+      max: 100
+    MonthlyCharges:
+      min: 0
+      max: 1000
+    TotalCharges:
+      min: 0
+      max: 100000
+
+  categorical:
+    gender:
+      - Male
+      - Female
+    Partner:
+      - Yes
+      - No
+    Dependents:
+      - Yes
+      - No
+    PhoneService:
+      - Yes
+      - No
+    InternetService:
+      - DSL
+      - Fiber optic
+      - No
+    Contract:
+      - Month-to-month
+      - One year
+      - Two year
+    PaymentMethod:
+      - Electronic check
+      - Mailed check
+      - Bank transfer (automatic)
+      - Credit card (automatic)
+
+  target:
+    Churn:
+      - 0
+      - 1
+
+  not_null:
+    - tenure
+    - MonthlyCharges
+    - TotalCharges
+    - gender
+    - Partner
+    - Dependents
+    - PhoneService
+    - InternetService
+    - Contract
+    - PaymentMethod
+    - Churn
