@@ -40,7 +40,6 @@ paths:
 
 mlflow:
   tracking_uri: "http://localhost:5000"
-  artifact_uri: "file:///home/runner/work/churn-mlops-project/churn-mlops-project/mlflow_artifacts"
   experiment_name: "churn_prediction_model"
 
 
