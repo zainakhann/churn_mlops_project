@@ -24,7 +24,7 @@ import mlflow
 import mlflow.sklearn
 from mlflow import MlflowClient
 
-from src.feature_store.feature_store import save_features
+from feature_store.feature_store import save_features
 from src.utils import load_data, split_data
 from pipelines.feature_pipeline import feature_engineering
 from pipelines.model_pipeline import build_model_pipeline
