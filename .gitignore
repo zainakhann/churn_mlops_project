@@ -5,3 +5,6 @@ mlruns/
 feature_store/
 logs/
 .env
+# binaries
+minikube-linux-amd64
+istio-1.29.2/
