@@ -3,7 +3,7 @@ import pandas as pd
 from sklearn.metrics import accuracy_score
 
 model = joblib.load("models/model.pkl")
-df = pd.read_csv("data.csv")
+df = pd.read_csv("churn.csv")
 
 X = df.drop("target", axis=1)
 y = df["target"]
