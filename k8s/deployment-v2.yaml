@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: churn-v2
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: churn
+  template:
+    metadata:
+      labels:
+        app: churn
+    spec:
+      containers:
+      - name: churn
+        image: churn-mlops:v2
+        imagePullPolicy: Never
+        env:
+        - name: MODEL_VERSION
+          value: "v2"

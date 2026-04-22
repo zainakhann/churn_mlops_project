@@ -1,0 +1,46 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: churn-rollout
+spec:
+  replicas: 3
+
+  selector:
+    matchLabels:
+      app: churn
+
+  template:
+    metadata:
+      labels:
+        app: churn
+    spec:
+      containers:
+      - name: churn
+        image: churn-mlops:v2
+        env:
+        - name: MODEL_VERSION
+          value: "v2"
+
+  strategy:
+    canary:
+      canaryService: churn-canary
+      stableService: churn-stable
+
+      trafficRouting:
+        istio:
+          virtualService:
+            name: churn-traffic
+            routes:
+              - http
+
+      steps:
+        - setWeight: 5
+        - pause: {duration: 60}
+
+        - setWeight: 20
+        - pause: {duration: 120}
+
+        - setWeight: 50
+        - pause: {duration: 180}
+
+        - setWeight: 100

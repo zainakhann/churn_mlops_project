@@ -1,0 +1,18 @@
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: churn-traffic
+spec:
+  hosts:
+  - "*"
+  gateways:
+  - churn-gateway
+  http:
+  - name: http
+    route:
+    - destination:
+        host: churn-stable
+      weight: 95
+    - destination:
+        host: churn-canary
+      weight: 5
