@@ -1,15 +1,21 @@
+# ===========================
 # src/train.py
+# ===========================
 
 # ===========================
 # Imports
 # ===========================
 import os
+import sys
 import logging
 import joblib
-from datetime import datetime
 import subprocess
 import hashlib
 import yaml
+from datetime import datetime
+
+# 🔥 FIX: ensure imports work in CI + local
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from sklearn.pipeline import Pipeline
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
@@ -18,18 +24,17 @@ import mlflow
 import mlflow.sklearn
 from mlflow import MlflowClient
 
-# ✅ ADDED (your import)
-from feature_store.feature_store import save_features
-
+from src.feature_store.feature_store import save_features
 from src.utils import load_data, split_data
 from pipelines.feature_pipeline import feature_engineering
 from pipelines.model_pipeline import build_model_pipeline
 
 
-# ============================
+# ===========================
 # Config Loading
-# ============================
+# ===========================
 CONFIG_PATH = "config/config.yaml"
+
 if not os.path.exists(CONFIG_PATH):
     raise FileNotFoundError(f"{CONFIG_PATH} not found")
 
@@ -37,9 +42,9 @@ with open(CONFIG_PATH, "r") as f:
     config = yaml.safe_load(f)
 
 
-# ============================
-# Config values (CHURN UPDATED)
-# ============================
+# ===========================
+# Paths / Config
+# ===========================
 LOG_PATH = config["paths"].get("logs", "logs/")
 MODEL_PATH = config["paths"].get("models", "models/")
 FEATURE_STORE_PATH = config["features"].get("feature_store_path", "feature_store/")
@@ -54,17 +59,17 @@ MLFLOW_URI = config["mlflow"].get("tracking_uri")
 EXPERIMENT_NAME = config["mlflow"].get("experiment_name", "churn_prediction_model")
 
 
-# ============================
+# ===========================
 # Ensure directories exist
-# ============================
+# ===========================
 os.makedirs(LOG_PATH, exist_ok=True)
 os.makedirs(MODEL_PATH, exist_ok=True)
 os.makedirs(FEATURE_STORE_PATH, exist_ok=True)
 
 
-# ============================
+# ===========================
 # Logging Setup
-# ============================
+# ===========================
 logging.basicConfig(
     filename=os.path.join(LOG_PATH, "training.log"),
     level=logging.INFO,
@@ -76,75 +81,67 @@ console.setLevel(logging.INFO)
 logging.getLogger("").addHandler(console)
 
 
-# ============================
-# Helper Functions
-# ============================
-def get_git_commit_hash() -> str:
+# ===========================
+# Helpers
+# ===========================
+def get_git_commit_hash():
     try:
         return subprocess.check_output(
-            ["git", "rev-parse", "HEAD"], stderr=subprocess.DEVNULL
+            ["git", "rev-parse", "HEAD"],
+            stderr=subprocess.DEVNULL
         ).decode("utf-8").strip()
     except Exception:
         return "N/A"
 
 
-def get_dvc_checksum(path: str) -> str:
+def get_dvc_checksum(path: str):
     if not os.path.exists(path):
         return "N/A"
-    hash_md5 = hashlib.md5()
+    h = hashlib.md5()
     with open(path, "rb") as f:
         for chunk in iter(lambda: f.read(4096), b""):
-            hash_md5.update(chunk)
-    return hash_md5.hexdigest()
+            h.update(chunk)
+    return h.hexdigest()
 
 
-# ============================
+# ===========================
 # Training Pipeline
-# ============================
+# ===========================
 def main():
-    logging.info("===== TRAINING PIPELINE STARTED =====")
+    logging.info("===== TRAINING STARTED =====")
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-    # ============================
-    # MLflow FIX (CI vs Local)
-    # ============================
     IS_CI = os.getenv("GITHUB_ACTIONS") == "true"
 
+    # MLflow setup
     if IS_CI:
         mlflow.set_tracking_uri("file:./mlruns")
     else:
         mlflow.set_tracking_uri(MLFLOW_URI)
 
-    # ============================
-    # Ensure experiment exists
-    # ============================
-    experiment = mlflow.get_experiment_by_name(EXPERIMENT_NAME)
-
-    if experiment is None:
+    if mlflow.get_experiment_by_name(EXPERIMENT_NAME) is None:
         mlflow.create_experiment(EXPERIMENT_NAME)
 
     mlflow.set_experiment(EXPERIMENT_NAME)
 
     with mlflow.start_run(run_name=f"train_{timestamp}"):
 
-        # ----------------------------
+        # ===========================
         # Load Data
-        # ----------------------------
+        # ===========================
         df = load_data(DATA_PATH)
         if df.empty:
             raise ValueError("Dataset is empty")
 
-        logging.info(f"Data Loaded | Shape: {df.shape}")
+        logging.info(f"Data Loaded: {df.shape}")
 
-        # ----------------------------
+        # ===========================
         # Feature Engineering
-        # ----------------------------
+        # ===========================
         df = feature_engineering(df)
 
-        # ----------------------------
-        # Feature Store Logging
-        # ----------------------------
         run_id = mlflow.active_run().info.run_id
+
         save_features(
             df,
             name="reference_features",
@@ -155,11 +152,11 @@ def main():
         feature_path = os.path.join(FEATURE_STORE_PATH, f"features_{timestamp}.pkl")
         joblib.dump(df, feature_path)
 
-        logging.info(f"Feature Engineering Done | Shape: {df.shape}")
+        logging.info(f"Features saved: {df.shape}")
 
-        # ----------------------------
-        # Split Data
-        # ----------------------------
+        # ===========================
+        # Split
+        # ===========================
         X_train, X_test, y_train, y_test = split_data(
             df,
             target=TARGET_COL,
@@ -167,20 +164,18 @@ def main():
             random_state=RANDOM_STATE
         )
 
-        logging.info(f"Split Done | Train: {X_train.shape} | Test: {X_test.shape}")
+        logging.info(f"Split done: {X_train.shape}, {X_test.shape}")
 
-        # ----------------------------
-        # Build and Train Model
-        # ----------------------------
+        # ===========================
+        # Model
+        # ===========================
         pipeline: Pipeline = build_model_pipeline(X_train)
 
-        logging.info("Model Pipeline Created")
         pipeline.fit(X_train, y_train)
-        logging.info("Model Training Completed")
 
-        # ----------------------------
-        # Evaluate Model
-        # ----------------------------
+        # ===========================
+        # Evaluation
+        # ===========================
         y_pred = pipeline.predict(X_test)
 
         acc = accuracy_score(y_test, y_pred)
@@ -189,70 +184,60 @@ def main():
         f1 = f1_score(y_test, y_pred, zero_division=0)
 
         logging.info(f"Accuracy: {acc:.4f}")
-        logging.info(f"Precision: {prec:.4f}")
-        logging.info(f"Recall: {rec:.4f}")
-        logging.info(f"F1 Score: {f1:.4f}")
 
-        # ----------------------------
-        # Save Model & Pipeline
-        # ----------------------------
-        model_path = os.path.join(MODEL_PATH, f"model_{timestamp}.pkl")
-        pipeline_path = os.path.join(MODEL_PATH, f"pipeline_{timestamp}.pkl")
+        # ===========================
+        # Save Models
+        # ===========================
+        timestamped_model = os.path.join(MODEL_PATH, f"model_{timestamp}.pkl")
+        latest_model = os.path.join(MODEL_PATH, "model.pkl")  # 🔥 FIX FOR CI
 
-        joblib.dump(pipeline, model_path)
-        joblib.dump(pipeline, pipeline_path)
+        joblib.dump(pipeline, timestamped_model)
+        joblib.dump(pipeline, latest_model)  # critical for CI evaluation
 
-        logging.info(f"Model Saved at: {model_path}")
-        logging.info(f"Pipeline Saved at: {pipeline_path}")
+        joblib.dump(pipeline, os.path.join(MODEL_PATH, "model.pkl"))
 
-        # ----------------------------
-        # MLflow Logging
-        # ----------------------------
-        mlflow.log_param("model", "RandomForest")
-        mlflow.log_param("git_commit", get_git_commit_hash())
+        logging.info(f"Model saved: {latest_model}")
 
+        # ===========================
+        # MLflow logging
+        # ===========================
         mlflow.log_metric("accuracy", acc)
         mlflow.log_metric("precision", prec)
         mlflow.log_metric("recall", rec)
-        mlflow.log_metric("f1_score", f1)
+        mlflow.log_metric("f1", f1)
+
+        mlflow.log_param("git_commit", get_git_commit_hash())
 
         mlflow.sklearn.log_model(pipeline, "model")
-        mlflow.log_artifact(model_path, artifact_path="model")
-        mlflow.log_artifact(pipeline_path, artifact_path="pipeline")
+
+        mlflow.log_artifact(latest_model, artifact_path="model")
         mlflow.log_artifact(feature_path, artifact_path="features")
 
-        # ----------------------------
-        # Model Registry
-        # ----------------------------
-        run_id = mlflow.active_run().info.run_id
+        # ===========================
+        # Register Model
+        # ===========================
         client = MlflowClient()
 
         mlflow.register_model(
-            f"runs:/{run_id}/model",
+            f"runs:/{mlflow.active_run().info.run_id}/model",
             "ChurnPredictionModel"
         )
 
-        logging.info(f"Model registered with run_id: {run_id}")
+        logging.info("Model registered successfully")
 
-        dvc_checksum = get_dvc_checksum(DATA_PATH)
-        mlflow.log_param("dvc_checksum", dvc_checksum)
-
-        # ----------------------------
+        # ===========================
         # Metadata
-        # ----------------------------
+        # ===========================
         metadata = {
             "timestamp": timestamp,
-            "model_path": model_path,
-            "pipeline_path": pipeline_path,
-            "features_path": feature_path,
+            "model_path": latest_model,
             "metrics": {
                 "accuracy": acc,
                 "precision": prec,
                 "recall": rec,
-                "f1_score": f1
+                "f1": f1
             },
             "git_commit": get_git_commit_hash(),
-            "dvc_checksum": dvc_checksum,
         }
 
         metadata_path = os.path.join(MODEL_PATH, f"metadata_{timestamp}.pkl")
@@ -260,12 +245,8 @@ def main():
 
         mlflow.log_artifact(metadata_path, artifact_path="metadata")
 
-        logging.info("Metadata Saved")
-        logging.info("===== TRAINING PIPELINE COMPLETED =====")
+        logging.info("===== TRAINING COMPLETED =====")
 
 
-# ============================
-# Entry Point
-# ============================
 if __name__ == "__main__":
     main()
