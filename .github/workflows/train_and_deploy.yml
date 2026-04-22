@@ -1,4 +1,4 @@
-#LOCAL ADVANCED CI/CD 
+# LOCAL ADVANCED CI/CD
 name: Local Advanced CI/CD
 
 on:
@@ -9,6 +9,9 @@ jobs:
 
   ci:
     runs-on: ubuntu-latest
+
+    env:
+      PYTHONPATH: .
 
     steps:
       - uses: actions/checkout@v4
@@ -41,6 +44,9 @@ jobs:
   docker:
     runs-on: ubuntu-latest
     needs: ci
+
+    env:
+      PYTHONPATH: .
 
     steps:
       - uses: actions/checkout@v4
