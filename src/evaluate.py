@@ -5,7 +5,7 @@ from sklearn.metrics import accuracy_score
 model = joblib.load("models/model.pkl")
 df = pd.read_csv("data/churn.csv")
 
-X = df.drop("target", axis=1)
+X = df.drop("Churn", axis=1)
 y = df["target"]
 
 preds = model.predict(X)
