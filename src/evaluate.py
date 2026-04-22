@@ -53,3 +53,9 @@ preds = model.predict(X)
 accuracy = (preds == y).mean()
 
 print(f"Accuracy: {accuracy:.4f}")
+
+# =========================
+# Save metrics for CI
+# =========================
+with open("metrics.txt", "w") as f:
+    f.write(f"accuracy:{accuracy}\n")
