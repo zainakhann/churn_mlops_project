@@ -6,7 +6,7 @@ model = joblib.load("models/model.pkl")
 df = pd.read_csv("data/churn.csv")
 
 X = df.drop("Churn", axis=1)
-y = df["target"]
+y = df["Churn"]
 
 preds = model.predict(X)
 acc = accuracy_score(y, preds)
