@@ -1,5 +1,7 @@
 with open("metrics.txt", "r") as f:
-    acc = float(f.read())
+    line = f.readline().strip()
+
+acc = float(line.split(":")[1])
 
 THRESHOLD = 0.80
 
